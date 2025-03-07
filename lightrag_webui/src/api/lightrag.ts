@@ -2,6 +2,7 @@ import axios, { AxiosError } from 'axios'
 import { backendBaseUrl } from '@/lib/constants'
 import { errorMessage } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings'
+import { useAuthStore } from '@/stores/state'
 
 // Types
 export type LightragNodeType = {
@@ -125,6 +126,11 @@ export type DocsStatusesResponse = {
   statuses: Record<DocStatus, DocStatusResponse[]>
 }
 
+export type LoginResponse = {
+  access_token: string
+  token_type: string
+}
+
 export const InvalidApiKeyError = 'Invalid API Key'
 export const RequireApiKeError = 'API Key required'
 
@@ -139,17 +145,37 @@ const axiosInstance = axios.create({
 // Interceptor：add api key
 axiosInstance.interceptors.request.use((config) => {
   const apiKey = useSettingsStore.getState().apiKey
+  const token = localStorage.getItem('LIGHTRAG-API-TOKEN');
   if (apiKey) {
     config.headers['X-API-Key'] = apiKey
   }
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`
+  }
   return config
 })
+
+let isShowingLoginModal = false;
+const retryQueue: Array<{ resolve: (value: any) => void; reject: (reason?: any) => void; config: any }> = [];
 
 // Interceptor：hanle error
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response) {
+      if (error.response?.status === 401 &&
+          (error.response.data.detail === "Invalid token" ||
+           error.response.data.detail === "Token expired")) {
+        // remove expired token
+        localStorage.removeItem('LIGHTRAG-API-TOKEN');
+        useAuthStore.getState().logout();
+
+        if (!isShowingLoginModal) {
+          isShowingLoginModal = true;
+          useAuthStore.getState().setShowLoginModal(true);
+        }
+        return Promise.reject(error);
+      }
       throw new Error(
         `${error.response.status} ${error.response.statusText}\n${JSON.stringify(
           error.response.data
@@ -323,4 +349,18 @@ export const batchUploadDocuments = async (
 export const clearDocuments = async (): Promise<DocActionResponse> => {
   const response = await axiosInstance.delete('/documents')
   return response.data
+}
+
+export const loginToServer = async (username: string, password: string): Promise<LoginResponse> => {
+  const formData = new FormData();
+  formData.append('username', username);
+  formData.append('password', password);
+
+  const response = await axiosInstance.post('/login', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data' // 注意：FormData 会自动设置正确的 boundary
+    }
+  });
+
+  return response.data;
 }

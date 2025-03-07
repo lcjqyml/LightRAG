@@ -17,6 +17,7 @@ import RetrievalTesting from '@/features/RetrievalTesting'
 import ApiSite from '@/features/ApiSite'
 
 import { Tabs, TabsContent } from '@/components/ui/Tabs'
+import GlobalLoginModal from '@/components/auth/GlobalLoginModal'
 
 function App() {
   const message = useBackendState.use.message()
@@ -54,6 +55,7 @@ function App() {
 
   return (
     <ThemeProvider>
+      <GlobalLoginModal />
       <main className="flex h-screen w-screen overflow-x-hidden">
         <Tabs
           defaultValue={currentTab}
@@ -81,6 +83,7 @@ function App() {
         {apiKeyInvalid && <ApiKeyAlert />}
         <Toaster />
       </main>
+      <Toaster position="top-center" />
     </ThemeProvider>
   )
 }

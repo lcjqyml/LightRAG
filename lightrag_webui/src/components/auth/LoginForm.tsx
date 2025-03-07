@@ -1,3 +1,9 @@
+import { useAuthStore } from "@/stores/state";
+import { useState } from "react";
+import Input from '@/components/ui/Input'
+import Button from "@/components/ui/Button";
+import { loginToServer } from '@/api/lightrag'
+
 const LoginForm = () => {
   const { login } = useAuthStore();
   const [loading, setLoading] = useState(false);
@@ -8,12 +14,9 @@ const LoginForm = () => {
 
     try {
       setLoading(true);
-      const response = await axios.post('/login', {
-        username: formData.get('username'),
-        password: formData.get('password')
-      });
-
-      login(response.data.access_token);
+      const response = await loginToServer(formData.get('username') as string, formData.get('password') as string);
+      
+      login(response.access_token);
     } catch (error) {
       console.error('Login failed...', error);
     } finally {
